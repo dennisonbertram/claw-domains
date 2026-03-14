@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Outfit } from 'next/font/google'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import Providers from '@/components/Providers'
+import { Providers } from '@/components/Providers'
 import Nav from '@/components/Nav'
 
 const outfit = Outfit({
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: '%s | .claw',
   },
   description: 'Find, claim, and manage your .claw identity in seconds. No jargon, no hassle.',
-  keywords: ['claw', 'domain', 'identity', 'Base', 'web3'],
+  keywords: ['claw', 'domain', 'identity', 'Arc', 'web3'],
   openGraph: {
     title: '.claw Domains',
     description: 'Your cozy home on the internet.',
@@ -54,12 +54,12 @@ export default function RootLayout({
             <p>
               .claw domains are registered on{' '}
               <a
-                href="https://base.org"
+                href="https://arc.network"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#5B61FE] hover:underline"
               >
-                Base
+                Arc Network
               </a>
               . Powered by decentralized infrastructure.
             </p>

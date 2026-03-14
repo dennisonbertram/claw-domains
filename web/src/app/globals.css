@@ -50,11 +50,6 @@ body {
   outline-offset: 2px;
 }
 
-/* ConnectKit modal z-index */
-[data-rk] {
-  z-index: 9999;
-}
-
 /* Spinning gradient border animation for TxStatus */
 @keyframes spin-slow {
   from { transform: rotate(0deg); }

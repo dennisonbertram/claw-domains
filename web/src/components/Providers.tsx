@@ -1,39 +1,42 @@
-'use client'
+'use client';
 
-import { WagmiProvider } from 'wagmi'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ConnectKitProvider } from 'connectkit'
-import { config } from '@/lib/wagmi'
-import { useState } from 'react'
+import { PrivyProvider } from '@privy-io/react-auth';
+import { WagmiProvider } from '@privy-io/wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { config, arcTestnet } from '@/lib/wagmi';
 
-/**
- * Wraps the app with Wagmi, React Query, and ConnectKit providers.
- * Must be a Client Component to use hooks in the provider chain.
- */
-export default function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 30_000,
-        retry: 2,
-      },
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 2,
     },
-  }))
+  },
+});
 
+export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <WagmiProvider config={config}>
+    <PrivyProvider
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
+      config={{
+        defaultChain: arcTestnet,
+        supportedChains: [arcTestnet],
+        loginMethods: ['email', 'wallet'],
+        embeddedWallets: {
+          ethereum: {
+            createOnLogin: 'users-without-wallets',
+          },
+        },
+        appearance: {
+          theme: 'dark',
+        },
+      }}
+    >
       <QueryClientProvider client={queryClient}>
-        <ConnectKitProvider
-          theme="midnight"
-          options={{
-            hideBalance: false,
-            hideTooltips: false,
-            language: 'en-US',
-          }}
-        >
+        <WagmiProvider config={config}>
           {children}
-        </ConnectKitProvider>
+        </WagmiProvider>
       </QueryClientProvider>
-    </WagmiProvider>
-  )
+    </PrivyProvider>
+  );
 }

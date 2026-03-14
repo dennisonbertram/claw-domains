@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ConnectKitButton } from 'connectkit'
+import { usePrivy } from '@privy-io/react-auth'
 
 /**
  * Floating pill navigation bar.
@@ -10,6 +10,8 @@ import { ConnectKitButton } from 'connectkit'
  * Usage: included in RootLayout — no props needed.
  */
 export default function Nav() {
+  const { login, logout, authenticated, user } = usePrivy()
+
   return (
     <nav
       className="fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-4xl z-50"
@@ -35,7 +37,28 @@ export default function Nav() {
           >
             My Domains
           </Link>
-          <ConnectKitButton />
+          {authenticated ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-white/70 font-mono">
+                {user?.wallet?.address
+                  ? `${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}`
+                  : 'Connected'}
+              </span>
+              <button
+                onClick={logout}
+                className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white"
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={login}
+              className="px-4 py-1.5 text-sm bg-[var(--primary)] hover:bg-[var(--primary)]/90 rounded-full transition-colors text-white font-medium"
+            >
+              Connect
+            </button>
+          )}
         </div>
       </div>
     </nav>

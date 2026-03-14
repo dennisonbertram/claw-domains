@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   // Allow images from common avatar/profile domains used in text records
   images: {
     remotePatterns: [
@@ -10,7 +11,6 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'pbs.twimg.com' },
     ],
   },
-  // Required for ConnectKit: suppress hydration warnings from wallet injection
   reactStrictMode: true,
 }
 

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import DomainCard from '@/components/DomainCard'
-import { ConnectKitButton } from 'connectkit'
+import { usePrivy } from '@privy-io/react-auth'
 import { useAccount } from 'wagmi'
 
 // Mock domains for demo (shown when wallet is connected)
@@ -33,6 +33,7 @@ const cardVariants = {
  */
 export default function ProfileClient() {
   const { isConnected } = useAccount()
+  const { login } = usePrivy()
 
   return (
     <div className="min-h-screen bg-[#FCFCFD] pt-28 pb-16">
@@ -69,7 +70,12 @@ export default function ProfileClient() {
             <p className="text-[#666666] text-sm mb-8 max-w-sm mx-auto">
               Connect your wallet to see and manage all your .claw domains in one place.
             </p>
-            <ConnectKitButton />
+            <button
+              onClick={() => login()}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white rounded-xl font-medium transition-colors"
+            >
+              Connect Wallet
+            </button>
           </motion.div>
         )}
 
