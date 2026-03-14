@@ -1,10 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { usePrivy } from '@privy-io/react-auth'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import TxStatus from '@/components/TxStatus'
-import { isValidLabel, getPriceDisplay } from '@/lib/contracts'
+import {
+  CONTRACT_ADDRESSES,
+  CLAW_REGISTRY_ABI,
+  USDC_ABI,
+  isValidLabel,
+  getPrice,
+  getPriceDisplay,
+} from '@/lib/contracts'
 
 // canvas-confetti is loaded dynamically to avoid SSR issues
 type ConfettiFn = (opts: Record<string, unknown>) => void
@@ -15,40 +24,103 @@ if (typeof window !== 'undefined') {
   })
 }
 
+const REGISTRY_ADDRESS = CONTRACT_ADDRESSES[5042002].registry
+const USDC_ADDRESS = CONTRACT_ADDRESSES[5042002].usdc
+
+type Step = 'checking' | 'unavailable' | 'ready' | 'approving' | 'registering' | 'success' | 'error'
+
 interface Props {
   label: string
 }
 
-type PageState = 'loading' | 'available' | 'taken' | 'confirming' | 'success' | 'error'
-
 /**
- * Redesigned registration page client component.
- * Mocks blockchain calls with useState + setTimeout.
+ * Registration page client component.
+ * Wired to real on-chain contract calls for availability, USDC approval, and domain registration.
  */
 export default function RegisterClient({ label }: Props) {
-  const [pageState, setPageState] = useState<PageState>('loading')
-  const [errorMsg, setErrorMsg] = useState('')
+  const { address, isConnected } = useAccount()
+  const { login } = usePrivy()
+  const [step, setStep] = useState<Step>('checking')
+  const [error, setError] = useState<string>('')
 
-  const isValid = isValidLabel(label)
-  const priceDisplay = getPriceDisplay(label)
+  const valid = isValidLabel(label)
+  const price = valid ? getPrice(label) : 0n
+  const priceDisplay = valid ? getPriceDisplay(label) : ''
 
-  // Simulate availability check on mount
+  // Check availability on-chain
+  const { data: isAvailable, isLoading: checkingAvailability } = useReadContract({
+    address: REGISTRY_ADDRESS,
+    abi: CLAW_REGISTRY_ABI,
+    functionName: 'available',
+    args: [label],
+    query: { enabled: valid },
+  })
+
+  // Check USDC balance
+  const { data: usdcBalance } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: USDC_ABI,
+    functionName: 'balanceOf',
+    args: [address!],
+    query: { enabled: !!address },
+  })
+
+  // Check USDC allowance
+  const { data: usdcAllowance } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: USDC_ABI,
+    functionName: 'allowance',
+    args: [address!, REGISTRY_ADDRESS],
+    query: { enabled: !!address },
+  })
+
+  // USDC Approve
+  const {
+    writeContract: approveUsdc,
+    data: approveTxHash,
+    isPending: isApproving,
+    error: approveError,
+  } = useWriteContract()
+  const { isSuccess: approveConfirmed } = useWaitForTransactionReceipt({ hash: approveTxHash })
+
+  // Register domain
+  const {
+    writeContract: registerDomain,
+    data: registerTxHash,
+    isPending: isRegistering,
+    error: registerError,
+  } = useWriteContract()
+  const { isSuccess: registerConfirmed } = useWaitForTransactionReceipt({ hash: registerTxHash })
+
+  // Update step based on availability check
   useEffect(() => {
-    if (!isValid) return
-    const timer = setTimeout(() => {
-      const charSum = label.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-      const mockAvailable = charSum % 3 !== 0
-      setPageState(mockAvailable ? 'available' : 'taken')
-    }, 800)
-    return () => clearTimeout(timer)
-  }, [label, isValid])
+    if (!valid) return
+    if (checkingAvailability) {
+      setStep('checking')
+    } else if (isAvailable === true) {
+      setStep('ready')
+    } else if (isAvailable === false) {
+      setStep('unavailable')
+    }
+  }, [isAvailable, checkingAvailability, valid])
 
-  function handleClaim() {
-    setPageState('confirming')
-    // Simulate confirming then success
-    setTimeout(() => {
-      setPageState('success')
-      // Trigger confetti
+  // Handle approve confirmation -> trigger register
+  useEffect(() => {
+    if (approveConfirmed && step === 'approving') {
+      setStep('registering')
+      registerDomain({
+        address: REGISTRY_ADDRESS,
+        abi: CLAW_REGISTRY_ABI,
+        functionName: 'register',
+        args: [label, address!],
+      })
+    }
+  }, [approveConfirmed, step, label, address, registerDomain])
+
+  // Handle register confirmation -> success
+  useEffect(() => {
+    if (registerConfirmed && step === 'registering') {
+      setStep('success')
       if (confetti) {
         confetti({
           particleCount: 120,
@@ -57,18 +129,81 @@ export default function RegisterClient({ label }: Props) {
           colors: ['#5B61FE', '#FF8162', '#A78BFA', '#10B981'],
         })
       }
-    }, 2000)
+    }
+  }, [registerConfirmed, step])
+
+  // Handle errors
+  useEffect(() => {
+    if (approveError) {
+      setStep('error')
+      setError(approveError.message?.split('\n')[0] || 'USDC approval failed')
+    }
+  }, [approveError])
+
+  useEffect(() => {
+    if (registerError) {
+      setStep('error')
+      setError(registerError.message?.split('\n')[0] || 'Registration failed')
+    }
+  }, [registerError])
+
+  function handleClaim() {
+    if (!isConnected) {
+      login()
+      return
+    }
+    if (!address) return
+
+    setError('')
+
+    // Check if we need approval
+    const needsApproval = !usdcAllowance || (usdcAllowance as bigint) < price
+
+    if (needsApproval) {
+      setStep('approving')
+      approveUsdc({
+        address: USDC_ADDRESS,
+        abi: USDC_ABI,
+        functionName: 'approve',
+        args: [REGISTRY_ADDRESS, price],
+      })
+    } else {
+      // Already approved, go straight to register
+      setStep('registering')
+      registerDomain({
+        address: REGISTRY_ADDRESS,
+        abi: CLAW_REGISTRY_ABI,
+        functionName: 'register',
+        args: [label, address],
+      })
+    }
   }
 
-  const suggestions = isValid
+  const hasEnoughUsdc = usdcBalance !== undefined && (usdcBalance as bigint) >= price
+
+  // NOTE: Suggestions are generated locally and NOT checked on-chain for availability.
+  const suggestions = valid
     ? [`${label}0`, `${label}x`, `${label}-me`, `${label}hq`].filter(isValidLabel)
     : []
 
-  if (!isValid) {
+  // Compute TxStatus state from current step
+  function getTxState(): 'pending' | 'confirming' | 'success' | 'error' {
+    if (step === 'approving') {
+      return approveConfirmed ? 'confirming' : 'pending'
+    }
+    if (step === 'registering') {
+      return registerConfirmed ? 'success' : 'pending'
+    }
+    if (step === 'success') return 'success'
+    if (step === 'error') return 'error'
+    return 'pending'
+  }
+
+  if (!valid) {
     return (
       <div className="min-h-screen bg-[#FCFCFD] flex items-center justify-center px-4 pt-20">
         <div className="max-w-md w-full bg-white rounded-3xl border border-[#E5E5E5] p-10 text-center shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
-          <div className="text-4xl mb-4" aria-hidden="true">⚠️</div>
+          <div className="text-4xl mb-4" aria-hidden="true">&#x26A0;&#xFE0F;</div>
           <h1
             className="text-2xl font-extrabold text-[#171717] mb-3"
             style={{ fontFamily: 'var(--font-outfit, Outfit, sans-serif)' }}
@@ -105,8 +240,8 @@ export default function RegisterClient({ label }: Props) {
         </Link>
 
         <AnimatePresence mode="wait">
-          {/* Loading */}
-          {pageState === 'loading' && (
+          {/* Checking availability */}
+          {step === 'checking' && (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
@@ -126,8 +261,8 @@ export default function RegisterClient({ label }: Props) {
             </motion.div>
           )}
 
-          {/* Available */}
-          {pageState === 'available' && (
+          {/* Available — ready to claim */}
+          {step === 'ready' && (
             <motion.div
               key="available"
               initial={{ opacity: 0, y: 20 }}
@@ -172,30 +307,41 @@ export default function RegisterClient({ label }: Props) {
                 </div>
               </div>
 
+              {/* USDC balance display */}
+              {isConnected && usdcBalance !== undefined && (
+                <div className="text-sm text-[#666666] mb-4">
+                  Your USDC balance: {(Number(usdcBalance) / 1e6).toFixed(2)} USDC
+                  {!hasEnoughUsdc && <span className="text-red-500 ml-2">Insufficient balance</span>}
+                </div>
+              )}
+
               {/* CTA button */}
               <motion.button
                 onClick={handleClaim}
-                className="w-full h-14 bg-[#FF8162] hover:bg-[#e86d50] text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
+                disabled={isConnected && !hasEnoughUsdc}
+                className="w-full h-14 bg-[#FF8162] hover:bg-[#e86d50] disabled:bg-[#D1D5DB] disabled:cursor-not-allowed text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
                 whileTap={{ scale: 0.97 }}
                 aria-label={`Claim ${label}.claw`}
               >
-                Claim {label}.claw
+                {isConnected ? `Claim ${label}.claw` : 'Connect wallet to claim'}
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
                 </svg>
               </motion.button>
 
-              <p className="mt-3 text-xs text-[#A3A3A3] text-center">
-                Connect wallet at the next step to complete registration
-              </p>
+              {!isConnected && (
+                <p className="mt-3 text-xs text-[#A3A3A3] text-center">
+                  Connect your wallet to complete registration
+                </p>
+              )}
             </motion.div>
           )}
 
-          {/* Confirming */}
-          {pageState === 'confirming' && (
+          {/* Approving USDC */}
+          {step === 'approving' && (
             <motion.div
-              key="confirming"
+              key="approving"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -208,6 +354,34 @@ export default function RegisterClient({ label }: Props) {
               >
                 {label}<span className="text-[#5B61FE]">.claw</span>
               </p>
+              <p className="text-sm text-[#666666] mb-4">
+                Step 1 of 2: Approving USDC spend...
+              </p>
+              <div className="mt-6">
+                <TxStatus state={approveConfirmed ? 'confirming' : 'pending'} />
+              </div>
+            </motion.div>
+          )}
+
+          {/* Registering domain */}
+          {step === 'registering' && (
+            <motion.div
+              key="registering"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="text-center"
+            >
+              <p
+                className="text-4xl font-bold text-[#171717] mb-3"
+                style={{ fontFamily: 'var(--font-geist-mono, monospace)' }}
+              >
+                {label}<span className="text-[#5B61FE]">.claw</span>
+              </p>
+              <p className="text-sm text-[#666666] mb-4">
+                Step 2 of 2: Registering your domain...
+              </p>
               <div className="mt-6">
                 <TxStatus state="confirming" />
               </div>
@@ -215,7 +389,7 @@ export default function RegisterClient({ label }: Props) {
           )}
 
           {/* Success */}
-          {pageState === 'success' && (
+          {step === 'success' && (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -231,7 +405,7 @@ export default function RegisterClient({ label }: Props) {
                 transition={{ type: 'spring', stiffness: 300, damping: 15, delay: 0.1 }}
                 aria-hidden="true"
               >
-                🎉
+                &#x1F389;
               </motion.div>
 
               <h1
@@ -277,8 +451,8 @@ export default function RegisterClient({ label }: Props) {
             </motion.div>
           )}
 
-          {/* Taken */}
-          {pageState === 'taken' && (
+          {/* Unavailable / Taken */}
+          {step === 'unavailable' && (
             <motion.div
               key="taken"
               initial={{ opacity: 0, y: 20 }}
@@ -287,7 +461,7 @@ export default function RegisterClient({ label }: Props) {
               transition={{ duration: 0.4 }}
               className="text-center"
             >
-              <div className="text-4xl mb-4" aria-hidden="true">😔</div>
+              <div className="text-4xl mb-4" aria-hidden="true">&#x1F614;</div>
               <h1
                 className="text-3xl font-extrabold text-[#171717] mb-3"
                 style={{ fontFamily: 'var(--font-outfit, Outfit, sans-serif)' }}
@@ -312,7 +486,7 @@ export default function RegisterClient({ label }: Props) {
                     >
                       {s}<span className="text-[#5B61FE]">.claw</span>
                     </p>
-                    <p className="text-xs text-[#A3A3A3] mt-1">Check availability →</p>
+                    <p className="text-xs text-[#A3A3A3] mt-1">Check availability &rarr;</p>
                   </Link>
                 ))}
               </div>
@@ -330,16 +504,24 @@ export default function RegisterClient({ label }: Props) {
           )}
 
           {/* Error */}
-          {pageState === 'error' && (
+          {step === 'error' && (
             <motion.div
               key="error"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="text-center"
             >
-              <TxStatus state="error" errorMessage={errorMsg || 'An error occurred. Please try again.'} />
+              <p
+                className="text-4xl font-bold text-[#171717] mb-3"
+                style={{ fontFamily: 'var(--font-geist-mono, monospace)' }}
+              >
+                {label}<span className="text-[#5B61FE]">.claw</span>
+              </p>
+              <div className="mt-4">
+                <TxStatus state="error" errorMessage={error || 'An error occurred. Please try again.'} />
+              </div>
               <button
-                onClick={() => setPageState('available')}
+                onClick={() => setStep('ready')}
                 className="mt-6 text-sm text-[#5B61FE] hover:underline"
               >
                 Try again

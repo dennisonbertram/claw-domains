@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const label = decodeURIComponent(name).toLowerCase()
   return {
     title: `Register ${label}.claw`,
-    description: `Check availability and register the ${label}.claw domain on Base.`,
+    description: `Check availability and register the ${label}.claw domain on Arc.`,
   }
 }
 

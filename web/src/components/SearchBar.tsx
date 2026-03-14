@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useReadContract } from 'wagmi'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { isValidLabel, getPriceDisplay } from '@/lib/contracts'
+import { isValidLabel, getPriceDisplay, CONTRACT_ADDRESSES, CLAW_REGISTRY_ABI } from '@/lib/contracts'
 
 type SearchStatus = 'idle' | 'checking' | 'available' | 'taken'
 
 /**
- * Hero search bar with live availability checking (mocked with setTimeout).
- * Debounces 600ms, then simulates an async availability check.
+ * Hero search bar with live on-chain availability checking.
+ * Debounces 600ms, then calls registry.available(label) on-chain.
  *
  * Usage:
  *   <SearchBar />
@@ -19,12 +20,23 @@ export default function SearchBar() {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<SearchStatus>('idle')
+  const [searchLabel, setSearchLabel] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const label = query.trim().toLowerCase().replace(/\.claw$/i, '')
   const isValid = label.length >= 1 && isValidLabel(label)
 
+  // On-chain availability check — manual trigger via refetch
+  const { data: isAvailable, isLoading: isChecking, refetch } = useReadContract({
+    address: CONTRACT_ADDRESSES[5042002].registry,
+    abi: CLAW_REGISTRY_ABI,
+    functionName: 'available',
+    args: [searchLabel],
+    query: { enabled: false }, // manual trigger only
+  })
+
+  // Debounce label changes, then trigger on-chain check
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
 
@@ -36,10 +48,7 @@ export default function SearchBar() {
     setStatus('checking')
 
     debounceRef.current = setTimeout(() => {
-      // Mock availability: deterministic based on label (for demo consistency)
-      const charSum = label.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-      const mockAvailable = charSum % 3 !== 0
-      setStatus(mockAvailable ? 'available' : 'taken')
+      setSearchLabel(label)
     }, 600)
 
     return () => {
@@ -47,12 +56,32 @@ export default function SearchBar() {
     }
   }, [label, isValid])
 
+  // When searchLabel updates, trigger the on-chain refetch
+  useEffect(() => {
+    if (searchLabel && isValid) {
+      refetch()
+    }
+  }, [searchLabel, isValid, refetch])
+
+  // Update status based on contract read result
+  useEffect(() => {
+    if (isChecking) {
+      setStatus('checking')
+    } else if (isAvailable === true) {
+      setStatus('available')
+    } else if (isAvailable === false) {
+      setStatus('taken')
+    }
+  }, [isAvailable, isChecking])
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!isValid) return
     router.push(`/register/${encodeURIComponent(label)}`)
   }
 
+  // NOTE: Suggestions are generated locally and NOT checked on-chain for availability.
+  // They are just valid label suggestions — actual availability is checked on the register page.
   const suggestions = label
     ? [`${label}0`, `${label}x`, `${label}-me`, `${label}hq`].filter(isValidLabel)
     : []

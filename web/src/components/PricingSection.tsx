@@ -5,25 +5,25 @@ import { motion } from 'framer-motion'
 const TIERS = [
   {
     chars: '5+ chars',
-    price: '0.01 ETH',
+    price: '$5 USDC',
     desc: 'Great for long, expressive names',
     popular: false,
   },
   {
     chars: '4 chars',
-    price: '0.05 ETH',
+    price: '$10 USDC',
     desc: 'Short and sweet handles',
     popular: false,
   },
   {
     chars: '3 chars',
-    price: '0.1 ETH',
+    price: '$25 USDC',
     desc: 'Rare and memorable',
     popular: true,
   },
   {
     chars: '1-2 chars',
-    price: '0.5 ETH',
+    price: '$100 USDC',
     desc: 'Ultra-exclusive identities',
     popular: false,
   },
