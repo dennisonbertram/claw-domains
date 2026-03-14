@@ -72,7 +72,7 @@ export default function ProfileClient() {
             </p>
             <button
               onClick={() => login()}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white rounded-xl font-medium transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#5B61FE] hover:bg-[#4A50E2] text-white rounded-xl font-medium transition-colors"
             >
               Connect Wallet
             </button>

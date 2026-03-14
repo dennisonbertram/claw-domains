@@ -39,14 +39,14 @@ export default function Nav() {
           </Link>
           {authenticated ? (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-white/70 font-mono">
+              <span className="text-sm text-[#666666] font-mono">
                 {user?.wallet?.address
                   ? `${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}`
                   : 'Connected'}
               </span>
               <button
                 onClick={logout}
-                className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white"
+                className="px-3 py-1.5 text-sm bg-[#F3F4F6] hover:bg-[#E5E5E5] rounded-full transition-colors text-[#171717]"
               >
                 Disconnect
               </button>
@@ -54,7 +54,7 @@ export default function Nav() {
           ) : (
             <button
               onClick={login}
-              className="px-4 py-1.5 text-sm bg-[var(--primary)] hover:bg-[var(--primary)]/90 rounded-full transition-colors text-white font-medium"
+              className="px-4 py-1.5 text-sm bg-[#5B61FE] hover:bg-[#4A50E2] rounded-full transition-colors text-white font-medium"
             >
               Connect
             </button>
