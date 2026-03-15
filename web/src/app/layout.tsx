@@ -45,6 +45,27 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${outfit.variable} ${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-screen bg-[#FCFCFD] text-[#171717] antialiased">
+        {/* Testnet banner */}
+        <div className="sticky top-0 z-[60] bg-[#FEF3C7] text-[#92400E] text-xs text-center py-1.5 px-4">
+          You&apos;re on Arc Testnet &mdash; Get test USDC:{' '}
+          <a
+            href="https://faucet.circle.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-[#78350F]"
+          >
+            Circle Faucet
+          </a>
+          {' '}&middot;{' '}
+          <a
+            href="https://easyfaucetarc.xyz/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-[#78350F]"
+          >
+            EasyFaucet
+          </a>
+        </div>
         <Providers>
           <Nav />
           <main id="main-content">
@@ -62,6 +83,19 @@ export default function RootLayout({
                 Arc Network
               </a>
               . Powered by decentralized infrastructure.
+            </p>
+            <p className="mt-2">
+              <span className="inline-block rounded bg-[#FEF3C7] px-2 py-0.5 text-[#92400E] text-xs font-medium mr-2">
+                Testnet
+              </span>
+              <a
+                href="/agent-guide.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#5B61FE] hover:underline"
+              >
+                Agent &amp; Developer Guide
+              </a>
             </p>
           </footer>
         </Providers>

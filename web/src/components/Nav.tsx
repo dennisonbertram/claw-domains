@@ -14,7 +14,7 @@ export default function Nav() {
 
   return (
     <nav
-      className="fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-4xl z-50"
+      className="fixed top-12 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-4xl z-50"
       aria-label="Main navigation"
     >
       <div className="bg-white/80 backdrop-blur-md border border-[#E5E5E5] rounded-full shadow-[0px_4px_20px_rgba(0,0,0,0.06)] flex justify-between items-center px-6 py-3">
@@ -37,6 +37,14 @@ export default function Nav() {
           >
             My Domains
           </Link>
+          <a
+            href="/agent-guide.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:block text-sm text-[#666666] hover:text-[#171717] transition-colors font-medium"
+          >
+            Agents
+          </a>
           {authenticated ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-[#666666] font-mono">
