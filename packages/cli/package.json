@@ -1,0 +1,25 @@
+{
+  "name": "@claw-domains/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "claw": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@claw-domains/shared": "*",
+    "commander": "^13.0.0",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

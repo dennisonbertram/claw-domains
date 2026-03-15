@@ -1,0 +1,14 @@
+{
+  "name": "claw-domains",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "web"
+  ],
+  "dependencies": {
+    "@vitest/pretty-format": "^4.1.0",
+    "strip-literal": "^3.1.0",
+    "vitest": "^3.2.4"
+  }
+}
