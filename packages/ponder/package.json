@@ -9,7 +9,7 @@
     "codegen": "ponder codegen"
   },
   "dependencies": {
-    "ponder": "^0.9",
+    "ponder": "^0.16",
     "hono": "^4.0.0",
     "viem": "^2.47.0"
   },
