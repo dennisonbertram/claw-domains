@@ -1,7 +1,7 @@
 export const CONTRACT_ADDRESSES = {
   5042002: {
-    registry: '0x0fdC78e7a68B8c5197895bf92C0658d47f2cc33C' as `0x${string}`,
-    resolver: '0xDF4FaEc0390505f394172D87faa134872b2D54B4' as `0x${string}`,
+    registry: '0xa3d096c0D43b0fEb317CD1a7b84BA987Bd0C4eC3' as `0x${string}`,
+    resolver: '0x3DD454c7b4FFe55469a5710A86fe86ab9f85c75e' as `0x${string}`,
     usdc: '0x3600000000000000000000000000000000000000' as `0x${string}`,
   },
 } as const
