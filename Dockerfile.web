@@ -1,0 +1,42 @@
+FROM node:20-slim AS builder
+WORKDIR /app
+
+# Copy root package files
+COPY package.json package-lock.json ./
+
+# Copy workspace package.json files
+COPY packages/shared/package.json packages/shared/
+COPY web/package.json web/
+
+# Install all dependencies
+RUN npm install --legacy-peer-deps
+
+# Force install native binaries that npm may skip due to optional dep bugs
+RUN cd web && npm install lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu --no-save --legacy-peer-deps 2>/dev/null; true
+
+# Copy shared package and build it
+COPY packages/shared/ packages/shared/
+RUN npm run build --workspace=packages/shared
+
+# Copy web source and build
+COPY web/ web/
+RUN npm run build --workspace=web
+
+FROM node:20-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+RUN groupadd --system --gid 1001 nodejs
+RUN useradd --system --uid 1001 nextjs
+
+# Next.js standalone output mirrors the monorepo path structure
+# In Docker with WORKDIR /app, server.js is at web/.next/standalone/app/web/server.js
+COPY --from=builder /app/web/public ./web/public
+COPY --from=builder --chown=nextjs:nodejs /app/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/web/.next/static ./web/.next/static
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+WORKDIR /app/web
+CMD ["node", "server.js"]
