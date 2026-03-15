@@ -32,6 +32,12 @@ export default function Nav() {
         {/* Right side */}
         <div className="flex items-center gap-4">
           <Link
+            href="/domains"
+            className="hidden sm:block text-sm text-[#666666] hover:text-[#171717] transition-colors font-medium"
+          >
+            Explore
+          </Link>
+          <Link
             href="/profile"
             className="hidden sm:block text-sm text-[#666666] hover:text-[#171717] transition-colors font-medium"
           >
