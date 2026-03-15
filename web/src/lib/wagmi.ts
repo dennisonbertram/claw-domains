@@ -14,7 +14,7 @@ export const arcTestnet = {
   },
   rpcUrls: {
     default: {
-      http: ['https://rpc.testnet.arc.network'],
+      http: ['https://arc-testnet.g.alchemy.com/v2/g4KibOrEWcbr0Su8y6WA1'],
     },
   },
   blockExplorers: {
