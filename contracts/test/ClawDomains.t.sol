@@ -6,10 +6,12 @@ import "../src/ClawRegistry.sol";
 import "../src/ClawResolver.sol";
 import "../src/ClawNamehash.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
-/// @notice Minimal mock USDC with 6 decimals and a public mint function
-contract MockUSDC is ERC20 {
-    constructor() ERC20("USD Coin", "USDC") {}
+/// @notice Minimal mock USDC with 6 decimals, ERC20Permit, and a public mint function
+contract MockUSDC is ERC20Permit {
+    constructor() ERC20("USD Coin", "USDC") ERC20Permit("USD Coin") {}
 
     function decimals() public pure override returns (uint8) { return 6; }
 
@@ -26,6 +28,16 @@ contract ClawDomainsTest is Test {
     address public bob   = address(0x3);
     address public carol = address(0x4);
 
+    // Private keys for permit signing
+    uint256 constant ALICE_PK = 0xA11CE;
+    uint256 constant BOB_PK   = 0xB0B;
+    uint256 constant CAROL_PK = 0xCA401;
+
+    // Addresses derived from private keys (for permit tests)
+    address public alicePk;
+    address public bobPk;
+    address public carolPk;
+
     // USDC price constants (match defaults in contract, 6 decimals)
     uint256 constant USDC_5PLUS = 5e6;    // $5
     uint256 constant USDC_4     = 20e6;   // $20
@@ -33,6 +45,10 @@ contract ClawDomainsTest is Test {
     uint256 constant USDC_12    = 200e6;  // $200
 
     function setUp() public {
+        alicePk = vm.addr(ALICE_PK);
+        bobPk   = vm.addr(BOB_PK);
+        carolPk = vm.addr(CAROL_PK);
+
         vm.startPrank(owner);
         mockUsdc  = new MockUSDC();
         registry  = new ClawRegistry(owner, address(mockUsdc));
@@ -65,6 +81,60 @@ contract ClawDomainsTest is Test {
         mockUsdc.approve(address(registry), price);
         vm.prank(payer);
         registry.renew(tokenId);
+    }
+
+    // Helper: sign an ERC20Permit message for mockUsdc
+    function _signPermit(
+        uint256 ownerPk,
+        address spender,
+        uint256 value,
+        uint256 deadline
+    ) internal view returns (uint8 v, bytes32 r, bytes32 s) {
+        address permitOwner = vm.addr(ownerPk);
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                permitOwner,
+                spender,
+                value,
+                mockUsdc.nonces(permitOwner),
+                deadline
+            )
+        );
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19\x01", mockUsdc.DOMAIN_SEPARATOR(), structHash)
+        );
+        (v, r, s) = vm.sign(ownerPk, digest);
+    }
+
+    // Helper: mint USDC, sign permit, and register via registerWithPermit
+    function _mintPermitRegister(
+        uint256 payerPk,
+        string memory name,
+        address domainOwner
+    ) internal {
+        address payer = vm.addr(payerPk);
+        uint256 price = registry.getUsdcPrice(name);
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(payerPk, address(registry), price, deadline);
+        vm.prank(payer);
+        registry.registerWithPermit(name, domainOwner, deadline, v, r, s);
+    }
+
+    // Helper: mint USDC, sign permit, and renew via renewWithPermit
+    function _mintPermitRenew(
+        uint256 payerPk,
+        uint256 tokenId
+    ) internal {
+        address payer = vm.addr(payerPk);
+        string memory name = registry.getName(tokenId);
+        uint256 price = registry.getUsdcPrice(name);
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(payerPk, address(registry), price, deadline);
+        vm.prank(payer);
+        registry.renewWithPermit(tokenId, deadline, v, r, s);
     }
 
     // =========================================================================
@@ -680,9 +750,10 @@ contract ClawDomainsTest is Test {
     }
 
     function test_register_fails_trailing_hyphen() public {
-        mockUsdc.mint(alice, USDC_5PLUS);
+        // "abc-" is 4 chars, so it costs $20 (USDC_4)
+        mockUsdc.mint(alice, USDC_4);
         vm.prank(alice);
-        mockUsdc.approve(address(registry), USDC_5PLUS);
+        mockUsdc.approve(address(registry), USDC_4);
 
         vm.prank(alice);
         vm.expectRevert("ClawRegistry: invalid label");
@@ -794,5 +865,223 @@ contract ClawDomainsTest is Test {
     function testFuzz_labelToId_unique(string memory a, string memory b) public pure {
         vm.assume(keccak256(bytes(a)) != keccak256(bytes(b)));
         assertNotEq(ClawNamehash.labelToId(a), ClawNamehash.labelToId(b));
+    }
+
+    // =========================================================================
+    // registerWithPermit tests
+    // =========================================================================
+
+    function test_registerWithPermit_basic() public {
+        _mintPermitRegister(ALICE_PK, "permitname", alicePk);
+        uint256 tokenId = ClawNamehash.labelToId("permitname");
+        assertEq(registry.ownerOf(tokenId), alicePk);
+        assertTrue(registry.nameExpires(tokenId) > block.timestamp);
+    }
+
+    function test_registerWithPermit_for_another() public {
+        // Alice pays, Bob gets the domain
+        _mintPermitRegister(ALICE_PK, "gifted", bobPk);
+        uint256 tokenId = ClawNamehash.labelToId("gifted");
+        assertEq(registry.ownerOf(tokenId), bobPk);
+    }
+
+    function test_registerWithPermit_emits_event() public {
+        address payer = vm.addr(ALICE_PK);
+        uint256 price = registry.getUsdcPrice("emitpermit");
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(ALICE_PK, address(registry), price, deadline);
+
+        uint256 tokenId = ClawNamehash.labelToId("emitpermit");
+        uint256 expectedExpiry = block.timestamp + 365 days;
+
+        vm.expectEmit(true, false, false, true);
+        emit ClawRegistry.DomainRegistered(tokenId, "emitpermit", payer, expectedExpiry);
+
+        vm.prank(payer);
+        registry.registerWithPermit("emitpermit", payer, deadline, v, r, s);
+    }
+
+    function test_registerWithPermit_invalid_label_reverts() public {
+        address payer = vm.addr(ALICE_PK);
+        uint256 price = USDC_5PLUS;
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(ALICE_PK, address(registry), price, deadline);
+
+        vm.prank(payer);
+        vm.expectRevert("ClawRegistry: invalid label");
+        registry.registerWithPermit("Invalid", payer, deadline, v, r, s);
+    }
+
+    function test_registerWithPermit_duplicate_reverts() public {
+        _mintPermitRegister(ALICE_PK, "dupetest", alicePk);
+
+        address payer = vm.addr(BOB_PK);
+        uint256 price = registry.getUsdcPrice("dupetest");
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(BOB_PK, address(registry), price, deadline);
+
+        vm.prank(payer);
+        vm.expectRevert("ClawRegistry: name not available");
+        registry.registerWithPermit("dupetest", payer, deadline, v, r, s);
+    }
+
+    function test_registerWithPermit_after_expiry() public {
+        _mintPermitRegister(ALICE_PK, "expiretest", alicePk);
+        vm.warp(block.timestamp + 366 days);
+        assertTrue(registry.available("expiretest"));
+        _mintPermitRegister(BOB_PK, "expiretest", bobPk);
+        uint256 tokenId = ClawNamehash.labelToId("expiretest");
+        assertEq(registry.ownerOf(tokenId), bobPk);
+    }
+
+    function test_registerWithPermit_existing_allowance() public {
+        // User already has allowance — permit fails silently, transferFrom uses existing allowance
+        address payer = vm.addr(ALICE_PK);
+        uint256 price = registry.getUsdcPrice("preapproved");
+        mockUsdc.mint(payer, price);
+        vm.prank(payer);
+        mockUsdc.approve(address(registry), price);
+
+        // Use an expired deadline to make permit fail, but transferFrom should still work
+        uint256 deadline = block.timestamp - 1;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(ALICE_PK, address(registry), price, deadline);
+
+        vm.prank(payer);
+        registry.registerWithPermit("preapproved", payer, deadline, v, r, s);
+
+        uint256 tokenId = ClawNamehash.labelToId("preapproved");
+        assertEq(registry.ownerOf(tokenId), payer);
+    }
+
+    function test_registerWithPermit_frontrun_resilience() public {
+        address payer = vm.addr(ALICE_PK);
+        uint256 price = registry.getUsdcPrice("frontrun");
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(ALICE_PK, address(registry), price, deadline);
+
+        // Front-runner submits the permit first
+        IERC20Permit(address(mockUsdc)).permit(payer, address(registry), price, deadline, v, r, s);
+
+        // Alice's registerWithPermit should still succeed (permit fails silently, but allowance is already set)
+        vm.prank(payer);
+        registry.registerWithPermit("frontrun", payer, deadline, v, r, s);
+
+        uint256 tokenId = ClawNamehash.labelToId("frontrun");
+        assertEq(registry.ownerOf(tokenId), payer);
+    }
+
+    function test_registerWithPermit_wrong_signer_reverts() public {
+        // Bob signs but Alice tries to use it — no allowance set, should revert on transferFrom
+        address payer = vm.addr(ALICE_PK);
+        uint256 price = registry.getUsdcPrice("badsig");
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        // Bob signs for Alice's address (wrong signer)
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(BOB_PK, address(registry), price, deadline);
+
+        vm.prank(payer);
+        vm.expectRevert(); // transferFrom fails — no allowance
+        registry.registerWithPermit("badsig", payer, deadline, v, r, s);
+    }
+
+    function test_registerWithPermit_insufficient_balance_reverts() public {
+        address payer = vm.addr(ALICE_PK);
+        uint256 price = registry.getUsdcPrice("nobalance");
+        // Don't mint any USDC
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(ALICE_PK, address(registry), price, deadline);
+
+        vm.prank(payer);
+        vm.expectRevert(); // transferFrom fails — no balance
+        registry.registerWithPermit("nobalance", payer, deadline, v, r, s);
+    }
+
+    // =========================================================================
+    // renewWithPermit tests
+    // =========================================================================
+
+    function test_renewWithPermit_extends_expiry() public {
+        _mintPermitRegister(ALICE_PK, "renewperm", alicePk);
+        uint256 tokenId = ClawNamehash.labelToId("renewperm");
+        uint256 originalExpiry = registry.nameExpires(tokenId);
+
+        _mintPermitRenew(BOB_PK, tokenId);
+
+        assertEq(registry.nameExpires(tokenId), originalExpiry + 365 days);
+    }
+
+    function test_renewWithPermit_emits_event() public {
+        _mintPermitRegister(ALICE_PK, "renewevt", alicePk);
+        uint256 tokenId = ClawNamehash.labelToId("renewevt");
+        uint256 originalExpiry = registry.nameExpires(tokenId);
+
+        address payer = vm.addr(BOB_PK);
+        string memory name = registry.getName(tokenId);
+        uint256 price = registry.getUsdcPrice(name);
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(BOB_PK, address(registry), price, deadline);
+
+        vm.expectEmit(true, false, false, true);
+        emit ClawRegistry.DomainRenewed(tokenId, originalExpiry + 365 days);
+
+        vm.prank(payer);
+        registry.renewWithPermit(tokenId, deadline, v, r, s);
+    }
+
+    function test_renewWithPermit_expired_domain_reverts() public {
+        _mintPermitRegister(ALICE_PK, "renewexp", alicePk);
+        uint256 tokenId = ClawNamehash.labelToId("renewexp");
+
+        vm.warp(block.timestamp + 366 days);
+
+        address payer = vm.addr(BOB_PK);
+        uint256 price = registry.getUsdcPrice("renewexp");
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(BOB_PK, address(registry), price, deadline);
+
+        vm.prank(payer);
+        vm.expectRevert("ClawRegistry: domain has expired");
+        registry.renewWithPermit(tokenId, deadline, v, r, s);
+    }
+
+    function test_renewWithPermit_nonexistent_reverts() public {
+        uint256 fakeTokenId = 99999;
+
+        address payer = vm.addr(ALICE_PK);
+        uint256 price = USDC_5PLUS;
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(ALICE_PK, address(registry), price, deadline);
+
+        vm.prank(payer);
+        vm.expectRevert();
+        registry.renewWithPermit(fakeTokenId, deadline, v, r, s);
+    }
+
+    function test_renewWithPermit_frontrun_resilience() public {
+        _mintPermitRegister(ALICE_PK, "renewfr", alicePk);
+        uint256 tokenId = ClawNamehash.labelToId("renewfr");
+        uint256 originalExpiry = registry.nameExpires(tokenId);
+
+        address payer = vm.addr(BOB_PK);
+        uint256 price = registry.getUsdcPrice("renewfr");
+        mockUsdc.mint(payer, price);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(BOB_PK, address(registry), price, deadline);
+
+        // Front-runner submits permit first
+        IERC20Permit(address(mockUsdc)).permit(payer, address(registry), price, deadline, v, r, s);
+
+        // Bob's renewWithPermit should still succeed
+        vm.prank(payer);
+        registry.renewWithPermit(tokenId, deadline, v, r, s);
+
+        assertEq(registry.nameExpires(tokenId), originalExpiry + 365 days);
     }
 }

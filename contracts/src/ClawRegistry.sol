@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import "./ClawNamehash.sol";
 
 /// @title ClawRegistry
@@ -86,29 +87,30 @@ contract ClawRegistry is ERC721, Ownable {
     /// @param name The label to register (e.g. "alice" for "alice.claw")
     /// @param domainOwner The address that will own the domain NFT
     function register(string calldata name, address domainOwner) external {
-        require(ClawNamehash.isValidLabel(name), "ClawRegistry: invalid label");
-
-        uint256 tokenId = ClawNamehash.labelToId(name);
-
         uint256 price = getUsdcPrice(name);
         usdc.safeTransferFrom(msg.sender, address(this), price);
+        _register(name, domainOwner);
+    }
 
-        // If the token exists but has expired, burn it first
-        if (_ownerOf(tokenId) != address(0)) {
-            require(
-                block.timestamp > _expiries[tokenId],
-                "ClawRegistry: name not available"
-            );
-            _burn(tokenId);
-        }
-
-        uint256 expires = block.timestamp + REGISTRATION_DURATION;
-        _expiries[tokenId] = expires;
-        _names[tokenId] = name;
-
-        _safeMint(domainOwner, tokenId);
-
-        emit DomainRegistered(tokenId, name, domainOwner, expires);
+    /// @notice Register a new .claw domain with USDC permit (single transaction)
+    /// @param name The label to register (e.g. "alice" for "alice.claw")
+    /// @param domainOwner The address that will own the domain NFT
+    /// @param deadline Permit signature deadline
+    /// @param v ECDSA v
+    /// @param r ECDSA r
+    /// @param s ECDSA s
+    function registerWithPermit(
+        string calldata name,
+        address domainOwner,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
+        uint256 price = getUsdcPrice(name);
+        try IERC20Permit(address(usdc)).permit(msg.sender, address(this), price, deadline, v, r, s) {} catch {}
+        usdc.safeTransferFrom(msg.sender, address(this), price);
+        _register(name, domainOwner);
     }
 
     /// @notice Check if a name is available for registration
@@ -130,22 +132,30 @@ contract ClawRegistry is ERC721, Ownable {
     /// @notice Renew a domain for 1 more year
     /// @param tokenId The token ID to renew
     function renew(uint256 tokenId) external {
-        require(_ownerOf(tokenId) != address(0), "ClawRegistry: token does not exist");
-        require(
-            block.timestamp <= _expiries[tokenId],
-            "ClawRegistry: domain has expired"
-        );
-
-        // Get the name to determine price
         string memory name = _names[tokenId];
-
         uint256 price = getUsdcPrice(name);
         usdc.safeTransferFrom(msg.sender, address(this), price);
+        _renew(tokenId);
+    }
 
-        uint256 newExpires = _expiries[tokenId] + REGISTRATION_DURATION;
-        _expiries[tokenId] = newExpires;
-
-        emit DomainRenewed(tokenId, newExpires);
+    /// @notice Renew a domain with USDC permit (single transaction)
+    /// @param tokenId The token ID to renew
+    /// @param deadline Permit signature deadline
+    /// @param v ECDSA v
+    /// @param r ECDSA r
+    /// @param s ECDSA s
+    function renewWithPermit(
+        uint256 tokenId,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
+        string memory name = _names[tokenId];
+        uint256 price = getUsdcPrice(name);
+        try IERC20Permit(address(usdc)).permit(msg.sender, address(this), price, deadline, v, r, s) {} catch {}
+        usdc.safeTransferFrom(msg.sender, address(this), price);
+        _renew(tokenId);
     }
 
     /// @notice Set the resolver for a domain
@@ -198,6 +208,44 @@ contract ClawRegistry is ERC721, Ownable {
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
+
+    /// @dev Core registration logic: validates label, handles expired domains, mints NFT
+    function _register(string calldata name, address domainOwner) internal {
+        require(ClawNamehash.isValidLabel(name), "ClawRegistry: invalid label");
+
+        uint256 tokenId = ClawNamehash.labelToId(name);
+
+        // If the token exists but has expired, burn it first
+        if (_ownerOf(tokenId) != address(0)) {
+            require(
+                block.timestamp > _expiries[tokenId],
+                "ClawRegistry: name not available"
+            );
+            _burn(tokenId);
+        }
+
+        uint256 expires = block.timestamp + REGISTRATION_DURATION;
+        _expiries[tokenId] = expires;
+        _names[tokenId] = name;
+
+        _safeMint(domainOwner, tokenId);
+
+        emit DomainRegistered(tokenId, name, domainOwner, expires);
+    }
+
+    /// @dev Core renewal logic: validates token exists and not expired, extends expiry
+    function _renew(uint256 tokenId) internal {
+        require(_ownerOf(tokenId) != address(0), "ClawRegistry: token does not exist");
+        require(
+            block.timestamp <= _expiries[tokenId],
+            "ClawRegistry: domain has expired"
+        );
+
+        uint256 newExpires = _expiries[tokenId] + REGISTRATION_DURATION;
+        _expiries[tokenId] = newExpires;
+
+        emit DomainRenewed(tokenId, newExpires);
+    }
 
     /// @dev Returns the pricing array index for a given label length
     function _priceIndex(uint256 len) private pure returns (uint256) {
