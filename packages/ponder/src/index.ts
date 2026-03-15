@@ -17,19 +17,12 @@ ponder.on("Registry:DomainRegistered", async ({ event, context }) => {
       registeredTxHash: event.transaction.hash,
     });
 
-  // Update account domain count
-  // Note: ponder 0.9 doesn't support computed updates in onConflictDoUpdate
-  // We use a simple increment approach
-  const existing = await context.db.find(account, { id: owner });
-  if (existing) {
-    await context.db
-      .update(account, { id: owner })
-      .set({ domainCount: existing.domainCount + 1 });
-  } else {
-    await context.db
-      .insert(account)
-      .values({ id: owner, domainCount: 1 });
-  }
+  await context.db
+    .insert(account)
+    .values({ id: owner, domainCount: 1 })
+    .onConflictDoUpdate((row) => ({
+      domainCount: row.domainCount + 1,
+    }));
 });
 
 // Registry: DomainRenewed
@@ -72,24 +65,20 @@ ponder.on("Registry:Transfer", async ({ event, context }) => {
 
   // Update account counts
   if (from !== zeroAddr) {
-    const fromAccount = await context.db.find(account, { id: from });
-    if (fromAccount) {
-      await context.db
-        .update(account, { id: from })
-        .set({ domainCount: fromAccount.domainCount > 0 ? fromAccount.domainCount - 1 : 0 });
-    }
-  }
-
-  const toAccount = await context.db.find(account, { id: to });
-  if (toAccount) {
-    await context.db
-      .update(account, { id: to })
-      .set({ domainCount: toAccount.domainCount + 1 });
-  } else {
     await context.db
       .insert(account)
-      .values({ id: to, domainCount: 1 });
+      .values({ id: from, domainCount: 0 })
+      .onConflictDoUpdate((row) => ({
+        domainCount: row.domainCount > 0 ? row.domainCount - 1 : 0,
+      }));
   }
+
+  await context.db
+    .insert(account)
+    .values({ id: to, domainCount: 1 })
+    .onConflictDoUpdate((row) => ({
+      domainCount: row.domainCount + 1,
+    }));
 });
 
 // Resolver: AddrChanged

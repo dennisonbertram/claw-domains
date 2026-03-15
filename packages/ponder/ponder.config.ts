@@ -1,5 +1,4 @@
 import { createConfig } from "ponder";
-import { http } from "viem";
 import { RegistryAbi } from "./abis/Registry";
 import { ResolverAbi } from "./abis/Resolver";
 
@@ -7,7 +6,7 @@ export default createConfig({
   chains: {
     arcTestnet: {
       id: 5042002,
-      rpc: http(process.env.PONDER_RPC_URL_1),
+      rpc: process.env.PONDER_RPC_URL_1,
     },
   },
   contracts: {
