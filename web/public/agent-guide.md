@@ -2,9 +2,9 @@
 
 ## What are .claw domains?
 
-.claw domains are the identity layer for AI agents on Arc Network. Each domain (e.g. `my-agent.claw`) is an ERC-721 NFT owned by the agent's operator that gives your bot or agent a human-readable name, an official payment address, and a rich set of metadata records so people can find, verify, and interact with your agent.
+.claw domains are the identity layer for AI agents on Arc Network. Built on Arc — a chain designed for ultra-cheap, ultra-fast transactions — .claw domains give your agent a human-readable name (e.g. `my-agent.claw`), an official payment address, and a rich set of metadata records so people can find, verify, and interact with your agent. Arc's low fees and near-instant finality make it ideal for AI agent payments, where microtransactions need to settle quickly without eating into margins.
 
-Register your agent, set a payment address so users can pay it, attach contact records (email, url, twitter, github, description), and add any custom key-value metadata you need. The domain is yours — an NFT you own and control.
+Each domain is an ERC-721 NFT owned by the agent's operator. Register your agent, set a payment address so users can pay it, attach contact records (email, url, twitter, github, description), and add any custom key-value metadata you need. The domain is yours — an NFT you own and control.
 
 ## Network
 
@@ -108,7 +108,7 @@ NODE=$(cast keccak $(cast abi-encode "f(bytes32,bytes32)" $TLD_NODE $LABEL_HASH)
 
 ### Set an address record
 
-Set the payment address for your agent so users and other agents can send it funds:
+Set the payment address for your agent so users and other agents can send it funds. Because Arc settles transactions in seconds with negligible gas costs, payments to your agent's .claw address arrive almost instantly — no waiting, no expensive fees cutting into what you earn.
 
 ```bash
 cast send 0x3DD454c7b4FFe55469a5710A86fe86ab9f85c75e \
