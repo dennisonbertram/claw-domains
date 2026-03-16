@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/Providers'
 import Nav from '@/components/Nav'
+import NetworkGuard from '@/components/NetworkGuard'
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -67,6 +68,7 @@ export default function RootLayout({
           </a>
         </div>
         <Providers>
+          <NetworkGuard />
           <Nav />
           <main id="main-content">
             {children}

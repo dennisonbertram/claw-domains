@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useChainId, useSwitchChain, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { usePrivy } from '@privy-io/react-auth'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -40,7 +40,6 @@ interface Props {
 export default function RegisterClient({ label }: Props) {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
-  const { switchChain } = useSwitchChain()
   const { login } = usePrivy()
   const [step, setStep] = useState<Step>('checking')
   const [error, setError] = useState<string>('')
@@ -315,21 +314,6 @@ export default function RegisterClient({ label }: Props) {
                 <div className="text-sm text-[#666666] mb-4">
                   Your USDC balance: {(Number(usdcBalance) / 1e6).toFixed(2)} USDC
                   {!hasEnoughUsdc && <span className="text-red-500 ml-2">Insufficient balance</span>}
-                </div>
-              )}
-
-              {/* Wrong chain warning */}
-              {isWrongChain && (
-                <div className="bg-[#FEF3C7] border border-[#F59E0B] rounded-2xl p-4 mb-4 text-center">
-                  <p className="text-sm text-[#92400E] font-medium mb-2">
-                    Your wallet is connected to the wrong network.
-                  </p>
-                  <button
-                    onClick={() => switchChain({ chainId: 5042002 })}
-                    className="px-4 py-2 bg-[#F59E0B] hover:bg-[#D97706] text-white text-sm font-semibold rounded-xl transition-colors"
-                  >
-                    Switch to Arc Testnet
-                  </button>
                 </div>
               )}
 
