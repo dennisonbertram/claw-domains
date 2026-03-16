@@ -1,52 +1,45 @@
 'use client'
 
-import { useAccount, useChainId, useSwitchChain } from 'wagmi'
+import { useWallets } from '@privy-io/react-auth'
+import { useAccount } from 'wagmi'
 import { useState } from 'react'
 
 const ARC_TESTNET_CHAIN_ID = 5042002
 
-const ARC_TESTNET_PARAMS = {
-  chainId: `0x${ARC_TESTNET_CHAIN_ID.toString(16)}`,
-  chainName: 'Arc Testnet',
-  nativeCurrency: { name: 'ARC', symbol: 'ARC', decimals: 18 },
-  rpcUrls: ['https://arc-testnet.g.alchemy.com/v2/g4KibOrEWcbr0Su8y6WA1'],
-  blockExplorerUrls: ['https://testnet.arc.network'],
-}
-
 export default function NetworkGuard() {
   const { isConnected } = useAccount()
-  const chainId = useChainId()
-  const { switchChain } = useSwitchChain()
+  const { wallets } = useWallets()
   const [switching, setSwitching] = useState(false)
 
-  if (!isConnected || chainId === ARC_TESTNET_CHAIN_ID) return null
+  // Get the active wallet and its actual chain
+  const activeWallet = wallets[0]
+  const walletChainId = activeWallet?.chainId ? parseInt(activeWallet.chainId.replace('eip155:', ''), 10) : null
+
+  if (!isConnected || !activeWallet || walletChainId === ARC_TESTNET_CHAIN_ID) return null
 
   async function handleSwitch() {
+    if (!activeWallet) return
     setSwitching(true)
     try {
-      // First try wagmi's switchChain (works if chain is already in wallet)
-      switchChain(
-        { chainId: ARC_TESTNET_CHAIN_ID },
-        {
-          onError: async () => {
-            // If switch fails, try adding the chain via window.ethereum
-            try {
-              const ethereum = (window as unknown as { ethereum?: { request: (args: { method: string; params: unknown[] }) => Promise<unknown> } }).ethereum
-              if (ethereum) {
-                await ethereum.request({
-                  method: 'wallet_addEthereumChain',
-                  params: [ARC_TESTNET_PARAMS],
-                })
-              }
-            } catch {
-              // User rejected or wallet doesn't support it
-            }
-            setSwitching(false)
-          },
-          onSuccess: () => setSwitching(false),
-        },
-      )
+      await activeWallet.switchChain(ARC_TESTNET_CHAIN_ID)
     } catch {
+      // User rejected or wallet doesn't support it — try raw RPC as fallback
+      try {
+        const provider = await activeWallet.getEthereumProvider()
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: `0x${ARC_TESTNET_CHAIN_ID.toString(16)}`,
+            chainName: 'Arc Testnet',
+            nativeCurrency: { name: 'ARC', symbol: 'ARC', decimals: 18 },
+            rpcUrls: ['https://arc-testnet.g.alchemy.com/v2/g4KibOrEWcbr0Su8y6WA1'],
+            blockExplorerUrls: ['https://testnet.arc.network'],
+          }],
+        })
+      } catch {
+        // User rejected adding the chain
+      }
+    } finally {
       setSwitching(false)
     }
   }

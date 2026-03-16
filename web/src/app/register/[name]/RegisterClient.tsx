@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { usePrivy } from '@privy-io/react-auth'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { usePrivy, useWallets } from '@privy-io/react-auth'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import TxStatus from '@/components/TxStatus'
@@ -39,11 +39,12 @@ interface Props {
  */
 export default function RegisterClient({ label }: Props) {
   const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const { wallets } = useWallets()
   const { login } = usePrivy()
   const [step, setStep] = useState<Step>('checking')
   const [error, setError] = useState<string>('')
-  const isWrongChain = isConnected && chainId !== 5042002
+  const walletChainId = wallets[0]?.chainId ? parseInt(wallets[0].chainId.replace('eip155:', ''), 10) : null
+  const isWrongChain = isConnected && walletChainId !== null && walletChainId !== 5042002
 
   const valid = isValidLabel(label)
   const price = valid ? getPrice(label) : 0n

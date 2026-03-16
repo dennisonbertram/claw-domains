@@ -1,8 +1,10 @@
-import { type Chain } from 'viem'
+import { defineChain } from 'viem'
 
-export const arcTestnet = {
+export const arcTestnet = defineChain({
   id: 5042002,
   name: 'Arc Testnet',
+  network: 'arc-testnet',
+  testnet: true,
   nativeCurrency: {
     decimals: 18,
     name: 'ARC',
@@ -16,4 +18,4 @@ export const arcTestnet = {
   blockExplorers: {
     default: { name: 'Arc Explorer', url: 'https://testnet.arc.network' },
   },
-} as const satisfies Chain
+})
