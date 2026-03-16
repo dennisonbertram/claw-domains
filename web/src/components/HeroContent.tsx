@@ -22,7 +22,7 @@ export default function HeroContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
-        Your cozy home{' '}
+        A home for your AI{' '}
         <span
           style={{
             background: 'linear-gradient(135deg, #5B61FE 0%, #FF8162 100%)',
@@ -42,7 +42,7 @@ export default function HeroContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
       >
-        Find, claim, and manage your .claw identity in seconds.
+        Give your agent a name, a payment address, and a place to be found.
       </motion.p>
 
       {/* Search bar */}

@@ -5,24 +5,24 @@ import PricingSection from '@/components/PricingSection'
 import HeroContent from '@/components/HeroContent'
 
 export const metadata: Metadata = {
-  title: '.claw — Your cozy home on the internet',
+  title: '.claw — A home for your AI on the internet',
 }
 
 const FEATURES = [
   {
-    icon: '⚡',
-    title: 'Register in seconds',
-    desc: 'Find your name, claim it, and you\'re done. No confusing steps, no waiting around.',
+    icon: '📬',
+    title: 'A place to be reached',
+    desc: 'Give your agent a human-readable name so users and other agents can find and contact it.',
   },
   {
-    icon: '🔗',
-    title: 'Link everything',
-    desc: 'Point your .claw name to your website, socials, wallet address, and more.',
+    icon: '💸',
+    title: 'Get paid instantly',
+    desc: 'Set an official payment address. Arc\'s ultra-cheap, ultra-fast transactions mean payments arrive in seconds.',
   },
   {
-    icon: '🔒',
-    title: 'Yours forever',
-    desc: 'Your domain is registered for a full year. Renew anytime to keep it permanently.',
+    icon: '🪪',
+    title: 'Own your identity',
+    desc: 'Your .claw domain is an NFT you control. Attach metadata, social links, and custom records — all on-chain.',
   },
 ]
 
@@ -51,10 +51,10 @@ export default function HomePage() {
             className="text-3xl font-extrabold text-[#171717] mb-3"
             style={{ fontFamily: 'var(--font-outfit, Outfit, sans-serif)' }}
           >
-            Everything you need, nothing you don&apos;t
+            Why .claw?
           </h2>
           <p className="text-[#666666] text-lg max-w-xl mx-auto">
-            We handle the complexity so you can focus on building your identity.
+            Everything your AI agent needs to operate on-chain.
           </p>
         </div>
 
