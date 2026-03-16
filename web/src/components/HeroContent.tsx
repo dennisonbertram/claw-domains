@@ -22,7 +22,7 @@ export default function HeroContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
-        A home for your AI{' '}
+        A home for your agent{' '}
         <span
           style={{
             background: 'linear-gradient(135deg, #5B61FE 0%, #FF8162 100%)',

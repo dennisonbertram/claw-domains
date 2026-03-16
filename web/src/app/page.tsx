@@ -5,7 +5,7 @@ import PricingSection from '@/components/PricingSection'
 import HeroContent from '@/components/HeroContent'
 
 export const metadata: Metadata = {
-  title: '.claw — A home for your AI on the internet',
+  title: '.claw — A home for your agent on the internet',
 }
 
 const FEATURES = [
