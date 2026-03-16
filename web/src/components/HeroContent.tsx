@@ -62,9 +62,9 @@ export default function HeroContent() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.4 }}
       >
-        <span>Trusted by builders</span>
+        <span>Built on Arc</span>
         <span className="text-[#E5E5E5]">·</span>
-        <span>No crypto jargon</span>
+        <span>Free on testnet</span>
         <span className="text-[#E5E5E5]">·</span>
         <span>Yours forever</span>
       </motion.p>
