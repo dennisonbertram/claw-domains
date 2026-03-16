@@ -58,6 +58,9 @@ export default function DomainClient({ label }: Props) {
   const [editMode, setEditMode] = useState(false)
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [addingCustom, setAddingCustom] = useState(false)
+  const [customKey, setCustomKey] = useState('')
+  const [customValue, setCustomValue] = useState('')
 
   const tokenId = labelToId(label)
   const node = namehash(label)
@@ -186,6 +189,19 @@ export default function DomainClient({ label }: Props) {
     }
     setEditingKey(null)
     setEditValue('')
+  }
+
+  function handleSaveCustomRecord() {
+    if (!customKey.trim() || !customValue.trim()) return
+    writeRecord({
+      address: RESOLVER_ADDRESS,
+      abi: CLAW_RESOLVER_ABI,
+      functionName: 'setText',
+      args: [node, customKey.trim(), customValue.trim()],
+    })
+    setAddingCustom(false)
+    setCustomKey('')
+    setCustomValue('')
   }
 
   function handleRenew() {
@@ -581,6 +597,56 @@ export default function DomainClient({ label }: Props) {
                       )}
                     </div>
                   ))}
+
+                  {/* Custom record */}
+                  {addingCustom ? (
+                    <div className="p-4 border-b border-[#E5E5E5] bg-[#F9FAFB] space-y-3">
+                      <div className="flex items-center gap-3">
+                        <input
+                          value={customKey}
+                          onChange={(e) => setCustomKey(e.target.value)}
+                          placeholder="Record key (e.g. discord, telegram)"
+                          className="flex-1 text-sm text-[#171717] bg-white border border-[#E5E5E5] focus:border-[#5B61FE] rounded-lg px-3 py-1.5 outline-none"
+                          autoFocus
+                          aria-label="Custom record key"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          value={customValue}
+                          onChange={(e) => setCustomValue(e.target.value)}
+                          placeholder="Record value"
+                          className="flex-1 font-mono text-sm text-[#171717] bg-white border border-[#E5E5E5] focus:border-[#5B61FE] rounded-lg px-3 py-1.5 outline-none"
+                          aria-label="Custom record value"
+                          onKeyDown={(e) => e.key === 'Enter' && handleSaveCustomRecord()}
+                        />
+                        <button
+                          onClick={handleSaveCustomRecord}
+                          disabled={isWriting || !customKey.trim() || !customValue.trim()}
+                          className="shrink-0 text-xs font-bold bg-[#5B61FE] text-white rounded-lg px-3 py-1.5 hover:bg-[#4A50E2] disabled:opacity-50 transition-colors"
+                        >
+                          {isWriting ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => { setAddingCustom(false); setCustomKey(''); setCustomValue('') }}
+                          className="shrink-0 text-xs font-medium text-[#666666] hover:text-[#171717] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setAddingCustom(true)}
+                      className="w-full p-4 text-sm text-[#5B61FE] hover:bg-[#F9FAFB] transition-colors text-left flex items-center gap-2"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      Add custom record
+                    </button>
+                  )}
                 </div>
               ) : activeRecords.length === 0 ? (
                 <div className="px-6 py-12 text-center">
