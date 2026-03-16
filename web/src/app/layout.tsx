@@ -23,18 +23,32 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://dotclaw.ai'),
   title: {
-    default: '.claw — Your cozy home on the internet',
+    default: '.claw — A home for your agent on the internet',
     template: '%s | .claw',
   },
-  description: 'Find, claim, and manage your .claw identity in seconds. No jargon, no hassle.',
-  keywords: ['claw', 'domain', 'identity', 'Arc', 'web3'],
+  description: 'Give your agent a name, a payment address, and a place to be found. Decentralized domains on Arc Network.',
+  keywords: ['claw', 'domain', 'identity', 'Arc', 'web3', 'decentralized', 'name service', 'Arc Network', 'AI agent'],
   openGraph: {
     title: '.claw Domains',
-    description: 'Your cozy home on the internet.',
-    url: 'https://claw.domains',
+    description: 'A home for your agent on the internet. Register your .claw domain on Arc Network.',
     siteName: '.claw',
     type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '.claw Domains',
+    description: 'A home for your agent on the internet. Register your .claw domain on Arc Network.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
 }
 

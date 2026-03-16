@@ -10,7 +10,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const label = decodeURIComponent(name).toLowerCase()
   return {
     title: `${label}.claw`,
-    description: `View and manage the ${label}.claw domain on Arc.`,
+    description: `View and manage the ${label}.claw domain on Arc Network.`,
+    openGraph: {
+      title: `${label}.claw`,
+      description: `View and manage the ${label}.claw domain on Arc Network.`,
+    },
+    twitter: {
+      card: 'summary_large_image' as const,
+      title: `${label}.claw`,
+      description: `View and manage the ${label}.claw domain on Arc Network.`,
+    },
   }
 }
 
