@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useChainId, useSwitchChain, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { usePrivy } from '@privy-io/react-auth'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -39,9 +39,12 @@ interface Props {
  */
 export default function RegisterClient({ label }: Props) {
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
   const { login } = usePrivy()
   const [step, setStep] = useState<Step>('checking')
   const [error, setError] = useState<string>('')
+  const isWrongChain = isConnected && chainId !== 5042002
 
   const valid = isValidLabel(label)
   const price = valid ? getPrice(label) : 0n
@@ -315,10 +318,25 @@ export default function RegisterClient({ label }: Props) {
                 </div>
               )}
 
+              {/* Wrong chain warning */}
+              {isWrongChain && (
+                <div className="bg-[#FEF3C7] border border-[#F59E0B] rounded-2xl p-4 mb-4 text-center">
+                  <p className="text-sm text-[#92400E] font-medium mb-2">
+                    Your wallet is connected to the wrong network.
+                  </p>
+                  <button
+                    onClick={() => switchChain({ chainId: 5042002 })}
+                    className="px-4 py-2 bg-[#F59E0B] hover:bg-[#D97706] text-white text-sm font-semibold rounded-xl transition-colors"
+                  >
+                    Switch to Arc Testnet
+                  </button>
+                </div>
+              )}
+
               {/* CTA button */}
               <motion.button
                 onClick={handleClaim}
-                disabled={isConnected && !hasEnoughUsdc}
+                disabled={(isConnected && !hasEnoughUsdc) || isWrongChain}
                 className="w-full h-14 bg-[#FF8162] hover:bg-[#e86d50] disabled:bg-[#D1D5DB] disabled:cursor-not-allowed text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
                 whileTap={{ scale: 0.97 }}
                 aria-label={`Claim ${label}.claw`}
