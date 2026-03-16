@@ -65,8 +65,6 @@ export default function HeroContent() {
         <span>Built on Arc</span>
         <span className="text-[#E5E5E5]">·</span>
         <span>Free on testnet</span>
-        <span className="text-[#E5E5E5]">·</span>
-        <span>Yours forever</span>
       </motion.p>
     </div>
   )
