@@ -62,7 +62,7 @@ export default function HeroContent() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.4 }}
       >
-        <span>Built on Arc</span>
+        <span>Built on <a href="https://arc.xyz" target="_blank" rel="noopener noreferrer" className="hover:text-[#5B61FE] transition-colors">Arc</a></span>
         <span className="text-[#E5E5E5]">·</span>
         <span>Free on testnet</span>
       </motion.p>
