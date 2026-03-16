@@ -502,35 +502,60 @@ export default function DomainClient({ label }: Props) {
                 )}
               </div>
 
-              {activeRecords.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <p className="text-[#A3A3A3] text-sm">
-                    No records set yet.
-                  </p>
-                  {isOwner && (
-                    <button
-                      onClick={() => setEditMode(true)}
-                      className="mt-3 text-sm text-[#5B61FE] hover:underline"
-                    >
-                      Add your first record
-                    </button>
-                  )}
-                </div>
-              ) : (
+              {editMode ? (
+                /* Edit mode: show ALL record types so user can add/edit any */
                 <div>
-                  {activeRecords.map(({ key, label: keyLabel, value }) => (
+                  {/* ETH Address row */}
+                  {editingKey === 'eth' ? (
+                    <div className="flex items-center gap-3 p-4 border-b border-[#E5E5E5] bg-[#F9FAFB]">
+                      <span className="shrink-0 bg-[#EEF2FF] text-[#5B61FE] text-xs font-bold rounded-md px-2 py-1 min-w-[80px] text-center">
+                        ETH Address
+                      </span>
+                      <input
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        placeholder="0x..."
+                        className="flex-1 font-mono text-sm text-[#171717] bg-white border border-[#5B61FE] rounded-lg px-3 py-1.5 outline-none"
+                        autoFocus
+                        aria-label="Edit ETH Address"
+                      />
+                      <button
+                        onClick={() => handleSaveRecord('eth')}
+                        disabled={isWriting}
+                        className="shrink-0 text-xs font-bold bg-[#5B61FE] text-white rounded-lg px-3 py-1.5 hover:bg-[#4A50E2] disabled:opacity-50 transition-colors"
+                      >
+                        {isWriting ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => setEditingKey(null)}
+                        className="shrink-0 text-xs font-medium text-[#666666] hover:text-[#171717] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <RecordRow
+                      label="ETH Address"
+                      value={ethAddrStr && ethAddrStr !== '0x0000000000000000000000000000000000000000' ? ethAddrStr : ''}
+                      editable
+                      onEdit={() => startEdit('eth', ethAddrStr && ethAddrStr !== '0x0000000000000000000000000000000000000000' ? ethAddrStr : '')}
+                    />
+                  )}
+                  {/* Text record rows */}
+                  {TEXT_RECORD_KEYS.map((key) => (
                     <div key={key}>
                       {editingKey === key ? (
                         <div className="flex items-center gap-3 p-4 border-b border-[#E5E5E5] bg-[#F9FAFB]">
                           <span className="shrink-0 bg-[#EEF2FF] text-[#5B61FE] text-xs font-bold rounded-md px-2 py-1 min-w-[80px] text-center">
-                            {keyLabel}
+                            {TEXT_KEY_LABELS[key]}
                           </span>
                           <input
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
+                            placeholder={`Enter ${TEXT_KEY_LABELS[key].toLowerCase()}`}
                             className="flex-1 font-mono text-sm text-[#171717] bg-white border border-[#5B61FE] rounded-lg px-3 py-1.5 outline-none"
                             autoFocus
-                            aria-label={`Edit ${keyLabel}`}
+                            aria-label={`Edit ${TEXT_KEY_LABELS[key]}`}
                           />
                           <button
                             onClick={() => handleSaveRecord(key)}
@@ -548,13 +573,39 @@ export default function DomainClient({ label }: Props) {
                         </div>
                       ) : (
                         <RecordRow
-                          label={keyLabel}
-                          value={value}
-                          editable={editMode}
-                          onEdit={() => startEdit(key, value)}
+                          label={TEXT_KEY_LABELS[key]}
+                          value={textRecords[key] || ''}
+                          editable
+                          onEdit={() => startEdit(key, textRecords[key] || '')}
                         />
                       )}
                     </div>
+                  ))}
+                </div>
+              ) : activeRecords.length === 0 ? (
+                <div className="px-6 py-12 text-center">
+                  <p className="text-[#A3A3A3] text-sm">
+                    No records set yet.
+                  </p>
+                  {isOwner && (
+                    <button
+                      onClick={() => setEditMode(true)}
+                      className="mt-3 text-sm text-[#5B61FE] hover:underline"
+                    >
+                      Add your first record
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {activeRecords.map(({ key, label: keyLabel, value }) => (
+                    <RecordRow
+                      key={key}
+                      label={keyLabel}
+                      value={value}
+                      editable={false}
+                      onEdit={() => startEdit(key, value)}
+                    />
                   ))}
                 </div>
               )}

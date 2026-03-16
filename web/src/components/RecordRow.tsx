@@ -35,7 +35,9 @@ export default function RecordRow({ label, value, editable, onEdit }: RecordRowP
 
       {/* Value */}
       <div className="flex-1 mx-4 min-w-0">
-        {isUrl ? (
+        {!value ? (
+          <span className="text-sm text-[#A3A3A3] italic">Not set</span>
+        ) : isUrl ? (
           <a
             href={value}
             target="_blank"
